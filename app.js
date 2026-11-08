@@ -38,7 +38,7 @@ h(`<section class="wrap narrow"><small class="muted">Day ${d} of 30 - ${GAME[D[d
 // ===== KUIS =====
 let Z=null;
 function quiz(d){if(status(d)=="locked")return go("#/program");st.started[d]=1;save();
-Z={d,i:0,res:[],sub:false,pick:"",used:[],Q:Array.from({length:15},(_,q)=>makeQ(d,q))};drawQ()}
+Z={d,i:0,res:[],sub:false,pick:"",used:[],Q:buildQuiz(d)};drawQ()}
 function drawQ(){const q=Z.Q[Z.i],last=Z.i==14,r=Z.res[Z.i];let ui="";
 if(q.type=="order")ui=`<div class="slot">${Z.used.map((k,p)=>`<button class="chip on" ${Z.sub?"disabled":""} onclick="rm(${p})">${q.words[k]}</button>`).join("")||"<span class='muted'>Tap the words below</span>"}</div>${q.words.map((w,k)=>`<button class="chip" ${Z.sub||Z.used.includes(k)?"disabled":""} onclick="add(${k})">${w}</button>`).join("")}${Z.sub?"":`<br><button class="btn alt" onclick="Z.used=[];drawQ()">Clear</button>`}`;
 else if(q.type=="fill")ui=`<input class="inp" ${Z.sub?"disabled":""} value="${esc(Z.pick)}" oninput="Z.pick=this.value" placeholder="Type your answer">`;

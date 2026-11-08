@@ -36,9 +36,10 @@ const MARK=["every day","right now","already","for two hours","yesterday","when 
 function ph(t,s,v){const p=V[v],s3=s=="she"||s=="he",be=s=="I"?"am":s3?"is":"are",was=(s=="I"||s3)?"was":"were",hv=s3?"has":"have";
 return [s3?p[1]:p[0],be+" "+p[4],hv+" "+p[3],hv+" been "+p[4],p[2],was+" "+p[4],"had "+p[3],"had been "+p[4],"will "+p[0],"will be "+p[4],"will have "+p[3],"will have been "+p[4],"would "+p[0],"would be "+p[4],"would have "+p[3],"would have been "+p[4]][t]}
 function sen(t,s,v,x){const r=s+" "+x+" "+V[v][5]+" "+MARK[t]+".";return t>11?"He said that "+r:r[0].toUpperCase()+r.slice(1)}
-const sh=(a,k)=>a.map((x,i)=>[x,Math.sin(k*97+i*13)]).sort((p,q)=>p[1]-q[1]).map(p=>p[0]);
+// Acak beneran (Fisher-Yates). Parameter ke-2 (seed) diabaikan, biar pemanggil lama tetap jalan.
+const sh=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 // Membuat soal ke-q (0-14) untuk hari d
-function makeQ(d,q){const [,ts,game]=D[d-1],seed=d*15+q,t=ts[(q+d)%ts.length],v=seed%8,s=SUBJ[Math.floor(seed/8)%6];
+function makeQ(d,q,off=0){const [,ts,game]=D[d-1],seed=d*15+q+off,t=ts[(q+d+off)%ts.length],v=seed%8,s=SUBJ[Math.floor(seed/8)%6];
 const type=game=="mixed"?["mc","fill","order","tf","mistake","match"][q%6]:game,c=ph(t,s,v),full=sen(t,s,v,c),g=4*(t>>2);
 const ds=[g,g+1,g+2,g+3,(t+4)%16,(t+8)%16].filter(x=>x!=t).map(x=>[x,ph(x,s,v)]).filter((x,i,a)=>x[1]!=c&&a.findIndex(y=>y[1]==x[1])==i).slice(0,3);
 const exp="Jawaban: "+c+". "+TENSES[t][0]+" memakai rumus "+TENSES[t][1]+".";
@@ -50,3 +51,22 @@ else if(type=="tf"){const ok=seed%2==0;o.text='"'+full+'"\nThis sentence uses '+
 else if(type=="mistake"){o.text="Find the mistake:\n"+sen(t,s,v,ds[0][1])+"\nWhich verb phrase fixes the sentence?";o.opts=sh([c,...ds.map(x=>x[1])],seed)}
 else{o.text="Which tense is used in this sentence?\n"+full;o.ans=TENSES[t][0];o.opts=sh([TENSES[t][0],...ds.map(x=>TENSES[x[0]][0])],seed);o.exp=full+" memakai "+TENSES[t][0]+" ("+TENSES[t][1]+")."}
 return o}
+
+// ===== RAKIT KUIS: soal diacak + posisi jawaban benar dibuat merata (A-D) =====
+const LASTOFF={};
+function buildQuiz(d){
+ // geseran acak: tiap attempt dapat kalimat/kata kerja/subjek berbeda, dan dijauhkan dari attempt sebelumnya
+ let off=Math.floor(Math.random()*5000);
+ if(LASTOFF[d]!=null){const gap=15+Math.floor(Math.random()*19);off=LASTOFF[d]+gap+48*Math.floor(Math.random()*100)}
+ LASTOFF[d]=off;
+ const Q=sh(Array.from({length:15},(_,q)=>makeQ(d,q,off)));
+ // soal "order": pastikan susunan kata tidak kebetulan sudah benar
+ Q.forEach(o=>{if(o.type=="order"&&o.words.length>1){let t=0;while(o.words.join(" ")==o.ans&&t++<20)o.words=sh(o.words)}});
+ // soal pilihan ganda (selain True/False): bagi posisi jawaban benar secara merata
+ const mc=Q.filter(o=>o.opts&&o.type!="tf"),n=mc.length;let deck=[];
+ for(let i=0;i<Math.floor(n/4);i++)deck.push(0,1,2,3);
+ deck.push(...sh([0,1,2,3]).slice(0,n%4));
+ deck=sh(deck);
+ mc.forEach((o,i)=>{const others=sh(o.opts.filter(x=>x!==o.ans)),p=Math.min(deck[i],others.length);
+  o.opts=[...others.slice(0,p),o.ans,...others.slice(p)]});
+ return Q}
